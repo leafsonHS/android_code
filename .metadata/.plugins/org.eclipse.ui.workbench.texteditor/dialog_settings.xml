@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
+		<item value="313" key="DIALOG_WIDTH"/>
+		<item value="151" key="DIALOG_Y_ORIGIN"/>
+		<item value="452" key="DIALOG_HEIGHT"/>
+		<item value="1037" key="DIALOG_X_ORIGIN"/>
+		<item value="1|Microsoft YaHei UI|9.0|0|WINDOWS|1|-12|0|0|0|400|0|0|0|1|0|0|0|0|Microsoft YaHei UI" key="DIALOG_FONT_NAME"/>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
+		<item value="true" key="wrap"/>
+		<item value="false" key="isRegEx"/>
+		<item value="false" key="casesensitive"/>
+		<item value="false" key="incremental"/>
+		<item value="false" key="wholeword"/>
+		<item value="initNanjing" key="selection"/>
+		<list key="findhistory">
+			<item value="initnanjing"/>
+			<item value="initjiang"/>
+			<item value="jiangning"/>
+			<item value="&gt;0"/>
+			<item value="ibus_201607028"/>
+			<item value="TABLE_LINEOBJ"/>
+			<item value="Selec"/>
+			<item value="u"/>
+		</list>
+		<list key="replacehistory">
+			<item value="ibus_201609018"/>
+			<item value="ibus_201607028.db"/>
+			<item value="ibus_20160704"/>
+			<item value=""/>
+			<item value="ibus_20160528"/>
+			<item value="ibus_20160528.db"/>
+			<item value="ibus_20160424"/>
+			<item value="isClicked"/>
+		</list>
+	</section>
+</section>

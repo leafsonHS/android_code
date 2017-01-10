@@ -1,0 +1,101 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+ xmlns:ns="http://mobwin.android.com/apk/res/com.zhuamob.sample"
+   	xmlns:baiduadsdk="http://schemas.android.com/apk/res/com.leafson.lifecycle"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="@color/white"
+    android:cacheColorHint="#00000000"
+    tools:context=".AllLineActivity" >
+
+    <!-- title bar -->
+
+
+
+ <RelativeLayout
+            android:id="@+id/titlebarlallline_id"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/title_bar_height"
+        android:background="@color/jpush_blue"
+         android:id="@+id/titlebarlsetting_id"
+        >
+
+
+          <ImageButton
+          android:id="@+id/titlebarallline_back_id"
+            android:layout_width="@dimen/title_bar_height"
+            android:layout_height="match_parent"
+            android:layout_alignParentLeft="true"
+            android:src="@drawable/back_btn"
+            android:background="@drawable/back_btn_bg"
+            />
+
+        <TextView
+             android:id="@+id/textviewxallline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_centerVertical="true"
+           android:text="@string/allDerection"
+            android:textColor="#ffffff"
+            android:textSize="@dimen/text_large_size"/>
+ 
+        
+      
+     
+        
+  
+    </RelativeLayout>
+    
+   
+    <LinearLayout
+        android:id="@+id/adalllineViewLayout"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/titlebarlallline_id"
+        android:orientation="horizontal" >
+
+        
+	
+		  
+		   <com.baidu.mobads.AdView
+        android:id="@+id/adView111"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        baiduadsdk:adSize="0" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/line_filter"
+        android:layout_width="fill_parent"
+        android:layout_height="50dp"
+        android:layout_below="@id/adalllineViewLayout"
+        android:orientation="horizontal"
+        android:focusable="true" 
+		android:focusableInTouchMode="true" 
+         >
+        <EditText
+            android:id="@+id/busLineNameFilter"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:hint="@string/linenameprompt" 
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/line_filter"
+           android:layout_marginBottom="50dp"
+        android:orientation="horizontal" >
+
+        <ListView
+            android:id="@+id/ListView03"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:cacheColorHint="#00000000"
+            android:textStyle="bold" />
+    </LinearLayout>
+  	  
+		
+</RelativeLayout>

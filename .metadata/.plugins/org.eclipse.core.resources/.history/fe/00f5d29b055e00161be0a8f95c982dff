@@ -1,0 +1,453 @@
+package com.netposa.pem;
+
+
+import java.util.List;
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningAppProcessInfo;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.Window;
+import android.widget.RelativeLayout;
+import android.widget.Toast;
+import com.netposa.contentframe.PEMHelper;
+import com.netposa.contentframe.PEMPreferences;
+import com.netposa.entity.DirInfo;
+import com.netposa.entity.LoginEntity;
+import com.netposa.entity.SidEntity;
+import com.netposa.network.APICaller;
+import com.netposa.network.BaseSDKCaller;
+import com.netposa.network.INetOperation;
+import com.netposa.network.NetOperationLoader;
+import com.netposa.network.NetSDKCaller;
+import com.netposa.network.SDKRuner;
+import com.netposa.network.StateCode;
+import com.netposa.pem.R;
+import com.netposa.player.PEMPlayActivity;
+import com.netposa.ui.Config;
+import com.netposa.ui.MyProgressDialog;
+import com.netposa.ui.ToastMsg;
+import com.netposa.pem.PEMDialog.OnButtonClickListener;
+
+
+public class Login extends Activity {
+	private MyProgressDialog myPD;
+	private UserBaseInfo mUserBaseInfo;
+	private int timestamp = 0; 
+	private PEMPreferences preferences;
+	private BaseSDKCaller caller;
+	
+	
+	private static final int CTAuthorize = 8385149;
+	private static final int Acitive = 8385148;
+	private static final int AutoLogin = 8385147;
+	// lwq 获取从短信中传输过来的url值，用于吊起APP,保存通道id信息,播放通道视频
+	private String url = null;
+    private ToastMsg imgToast;
+    private  String  vrmIP;
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {  
+		super.onCreate(savedInstanceState);
+		// 全屏、适配输入法框体、无工具栏
+		Window w = getWindow(); 
+		// w.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+		w.requestFeature(Window.FEATURE_NO_TITLE);
+
+		setContentView(R.layout.main);   
+		
+		preferences = PEMPreferences.getInstence(this);
+		mUserBaseInfo = (UserBaseInfo) getApplication(); 
+	
+		imgToast = new ToastMsg();
+		myPD = new MyProgressDialog(this); 
+		
+		if (mUserBaseInfo.isLoginned && getLoginInfo())
+		{
+			
+			if ((url != null && url.contains(".com"))|| getActiveApp())
+			{
+				startHome();
+				finish();
+				return ;
+			}
+		} 
+
+		vrmIP = "112.21.163.204:82";
+		mUserBaseInfo.userInfo.setPwd("admin");
+		mUserBaseInfo.userInfo.setName("admin");
+		Bundle bundle = getIntent().getExtras();
+		if (bundle != null)
+		{   
+			vrmIP = bundle.getString("vrmIP");
+			String  userName = bundle.getString("name");
+			String  password =  bundle.getString("password");
+			mUserBaseInfo.userInfo.setName(userName);
+			mUserBaseInfo.userInfo.setPwd(password);
+		}
+		//else
+		//{
+		  //  exitDialog();
+		//}
+	}
+	 
+	
+	private boolean getActiveApp(){   
+		 
+		  ActivityManager am = (ActivityManager)this.getSystemService(Context.ACTIVITY_SERVICE);  //获得ActivityManager对象
+		  List<RunningAppProcessInfo> runningTasks = am.getRunningAppProcesses();  //获得所有正在进行的程序存放在一个list中	
+	
+		  for(int i=0;i<runningTasks.size();i++){
+			  String proName = runningTasks.get(i).processName;
+			 if (proName!=null && proName.equals("com.netposa.xhdz")){ 
+				 return true;
+			 }
+		  }
+		  return false;
+	}
+
+	
+	private boolean getLoginInfo()
+	{
+		if (mUserBaseInfo.userInfo.getUrl()!= null && mUserBaseInfo.userInfo.getName()
+				!=null && mUserBaseInfo.userInfo.getPwd() != null) {
+			return true;
+			
+		}
+		return false;
+	}
+
+ 
+	
+	@Override
+	protected void onStart( ) {
+		Log.v("shanezhai","onStart....");
+		super.onStart();
+		
+		if(!mUserBaseInfo.isNetSupport(Login.this))
+		{
+			Toast.makeText(Login.this, getResources().getString(R.string.network_null), Toast.LENGTH_SHORT).show();
+			return;
+		} 
+		if(vrmIP != null){
+			mUserBaseInfo.isTest = false;
+			mUserBaseInfo.userInfo.setUrl(vrmIP);
+/*			mUserBaseInfo.userInfo.setName("admin");
+			mUserBaseInfo.userInfo.setPwd("admin");*/
+			
+			startLogin();
+		}
+	}
+	
+	
+	@Override
+	protected void onDestroy() {
+		//  startApnSettin会在登录界面销毁的时候，提示安装VPDN（apn.apk在assert里面）
+		//if (!(preferences.getApnEnable() && preferences.getApnKeep())) {
+
+			//startApnSetting(false);
+		//}
+		super.onDestroy();
+		if(mUserBaseInfo != null){
+			if(!mUserBaseInfo.isLoginned){
+				System.exit(0);
+			}
+		}
+	}
+
+
+	private void getsid() {
+		mUserBaseInfo.mNetOperationLoader.resetCookie();
+		Message getsid = Message.obtain(loginHandler, INetOperation.GETSID);
+		getsid.arg2 = timestamp;
+		Log.v("shanezhai","timesamp value is:"+timestamp);
+		APICaller caller = new APICaller(mUserBaseInfo.mNetOperationLoader);
+		SidEntity entity = new SidEntity();
+		getsid.obj = entity;
+		caller.execute(getsid);
+
+	}
+
+	private Handler loginHandler = new Handler() {
+		@Override
+		public void handleMessage(Message msg) {
+			switch (msg.what) {
+			case INetOperation.GETSID:
+				if(timestamp == -1){
+					//  取消登录了
+					return ;
+				}
+				SidEntity entity = (SidEntity) msg.obj;
+				if (entity.errno == 0 && msg.arg2 == timestamp) {
+					mUserBaseInfo.setRand(entity.rand);
+					mUserBaseInfo.setVersion(entity.version);
+					login(entity.rand);
+				} else {
+					timestamp = 0;
+					myPD.dismissProgressDialog();
+					entity.printError(Login.this);
+				}
+				break;
+			case INetOperation.LOGIN:
+				LoginEntity entity1 = (LoginEntity) msg.obj;
+				if(timestamp == -1){
+					//  取消登录了
+					return ;
+				}
+				if (entity1.errno == 0 && timestamp == msg.arg2) {
+					entity1.modules.name = getText(R.string.platsoftwarename)
+							.toString();
+					startHome();
+					finish();
+				} else {
+					myPD.dismissProgressDialog();
+					entity1.printError(Login.this);
+				}
+				timestamp = 0;
+				break;
+				
+			case CTAuthorize:
+				
+				break;
+			default:
+				break;
+			}
+
+		}
+	};
+
+	private void login(String rand) {
+
+		Message login = Message.obtain(loginHandler, INetOperation.LOGIN);
+		login.arg2 = timestamp;
+		LoginEntity entity = new LoginEntity();
+		String devt = PEMHelper.getIMEI(this);
+		entity.username = mUserBaseInfo.userInfo.getName();
+		entity.rand = rand; 
+		entity.password = mUserBaseInfo.userInfo.getPwd();
+		entity.devt = devt;
+		entity.clientVersion = getResources().getText(R.string.edition)
+				.toString();
+		Log.i("12345", "name:"+entity.username+"pawd:"+entity.password);
+		login.obj = entity;
+		APICaller caller = new APICaller(mUserBaseInfo.mNetOperationLoader);
+		caller.execute(login);
+	}
+	
+	private String apnid = null;
+
+	public boolean isNetworkAvailable() {
+		Context context = getApplicationContext();
+		ConnectivityManager connect = (ConnectivityManager) context
+				.getSystemService(Context.CONNECTIVITY_SERVICE);
+		if (connect == null) {
+			return false;
+		} else// get all network info
+		{
+			NetworkInfo[] info = connect.getAllNetworkInfo();
+			if (info != null) {
+				for (int i = 0; i < info.length; i++) {
+					if (info[i].isConnected()) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	Handler apnhander;
+
+	private void startLogin() {
+		Log.v("shanezhai","startLogin.....");
+		timestamp = (int) System.currentTimeMillis();
+	
+		myPD.showProgressDialog(R.string.logining); 
+		_startLogin();
+	}
+
+	private void _startLogin() {
+		mUserBaseInfo.reset();
+		mUserBaseInfo.setLoginCaller(NetSDKCaller.class);
+		onNetLogin();
+	}
+
+	private void onNetLogin() {
+		mUserBaseInfo.mNetOperationLoader = new NetOperationLoader(
+				mUserBaseInfo.userInfo.getUrl());
+		getsid();
+	}
+
+	protected void startHome() {
+		mUserBaseInfo.isLoginned = true;
+		// 跳转到内容页面
+		//dismissPD();
+		if (myPD != null)
+		{
+			if (myPD.pd!=null &&myPD.pd.isShowing())
+			{
+				myPD.dismissProgressDialog();
+			}
+			
+		}
+		
+		Intent intent = new Intent();
+  		if (url != null && url.contains(".com"))
+   		{   			
+   			String ids[] = url.split("com/");
+   					 
+   			intent.putExtra("chaid",ids[1]);
+   			intent.putExtra("isLink", true);
+   			
+   			intent.setClass(Login.this, PEMPlayActivity.class);
+
+   			url = null; 		 	
+   		 
+   		}
+   		else 
+   		{
+   			intent.setClass(Login.this, SplashActivity.class);
+   		}
+  	
+		// 登陆成功后，监听网络状态
+  		mUserBaseInfo.regReceiver(); 
+
+		startActivityForResult(intent, Config.StartAvtivity);
+
+	} 
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		
+		super.onActivityResult(requestCode, resultCode, data);
+		
+	}
+
+	// Menu item Ids
+	public static final int SRC_ID = Menu.FIRST;
+	public static final int HELP_ID = Menu.FIRST + 1;
+	public static final int ABOUT_ID = Menu.FIRST + 2;
+	public static final int SHIFT_ID = Menu.FIRST + 3;
+	public static final int vpdn_ID = Menu.FIRST + 4;
+	private static final String pText = "平台版";
+	private static final String sText = "标准版";
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+
+		if (Config.NeedActive)
+			menu.add(0, SRC_ID, 0, R.string.key).setIcon(
+					android.R.drawable.ic_menu_agenda);
+
+		String t = "版本切换";
+		menu.add(1, SHIFT_ID, 1, t).setIcon(android.R.drawable.ic_menu_rotate);
+
+		menu.add(2, ABOUT_ID, 2, R.string.about).setIcon(
+				android.R.drawable.ic_menu_info_details);
+		// vpdn
+		if (Config.ApnSetting)
+			menu.add(3, vpdn_ID, 3, "VPDN设置").setIcon(
+					android.R.drawable.ic_menu_edit);
+		return true;
+	}
+
+	@Override
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		if (Config.DefaultVersion == PEMPreferences.integration) {
+			menu.setGroupVisible(1, true);
+		} else {
+			menu.setGroupVisible(1, false);
+		}
+		if (Config.NeedActive) {
+			if (preferences.getRegPlatform() != PEMPreferences.integration) {
+				menu.setGroupVisible(1, false);
+			} else {
+				menu.setGroupVisible(1, true);
+			}
+		}
+		return super.onPrepareOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+		case HELP_ID:
+			help();
+			return true;
+		case ABOUT_ID:
+			about(this);
+			return true;
+		default:
+			return false;
+		}
+		// return super.onOptionsItemSelected(item);
+	}
+
+
+	private int getPlatform() {
+		return preferences.getPlatform();
+	}
+
+	public static void about(Context context) {
+		
+		final Dialog  dialog2 = new Dialog(context,R.style.About_Dialog);
+		LayoutInflater  flater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		View  dialogView = flater.inflate(R.layout.about, null);
+		RelativeLayout  sureBtn = (RelativeLayout)dialogView.findViewById(R.id.about_sure);
+		dialog2.setContentView(dialogView);
+		sureBtn.setOnClickListener(new OnClickListener() {
+			public void onClick(View view){
+				dialog2.dismiss();
+			}
+		});
+		dialog2.show();
+	}
+
+	private void help() {
+		new AlertDialog.Builder(this)
+				.setTitle(R.string.help)
+				.setMessage("建设中...")
+				.setPositiveButton(R.string.ok,
+						new DialogInterface.OnClickListener() {
+
+							@Override
+							public void onClick(DialogInterface dialog,
+									int which) {
+
+							}
+						}).show();
+
+	}
+
+	private void exitDialog() {
+		final PEMDialog  dialog = new PEMDialog(this);
+		dialog.setOnBtnClickListener(new OnButtonClickListener(){
+			
+			@Override
+			public void OnClick(View clickedView, boolean isCancelBtn){
+				dialog.dismiss();
+				mUserBaseInfo.isLoginned = false;
+				finish();
+			}
+		
+		});
+		dialog.show();
+	}
+	
+
+	
+}

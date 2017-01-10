@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+<fullyQualifiedTypeName name="java.lang.Integer"/>
+<fullyQualifiedTypeName name="com.leafson.xiamen.HomeActivity"/>
+<fullyQualifiedTypeName name="com.leafson.lifecycle.nanjing.util.DBUtil"/>
+<fullyQualifiedTypeName name="com.leafson.lifecycle.entity.Event"/>
+<fullyQualifiedTypeName name="com.leafson.lifecycle.R"/>
+<fullyQualifiedTypeName name="java.net.URLEncoder"/>
+<fullyQualifiedTypeName name="java.util.List"/>
+<fullyQualifiedTypeName name="java.net.CookiePolicy"/>
+<fullyQualifiedTypeName name="java.net.CookieStore"/>
+<fullyQualifiedTypeName name="android.os.Build"/>
+<fullyQualifiedTypeName name="java.util.Map.Entry"/>
+<fullyQualifiedTypeName name="android.util.Base64"/>
+<fullyQualifiedTypeName name="android.util.Log"/>
+<fullyQualifiedTypeName name="java.lang.System"/>
+</qualifiedTypeNameHistroy>

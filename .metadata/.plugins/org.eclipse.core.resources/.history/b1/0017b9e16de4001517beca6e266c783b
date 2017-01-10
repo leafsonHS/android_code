@@ -1,0 +1,252 @@
+package com.leafson.xiamen.utils;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
+
+import org.htmlcleaner.HtmlCleaner;
+import org.htmlcleaner.TagNode;
+
+import android.util.Log;
+
+public class Utils {
+
+	public static 	List<Map<String, String>> getXpathBus(String inStream,String lineNamea) {
+		HtmlCleaner cleaner = new HtmlCleaner();
+		List<Map<String, String>> data = new ArrayList<Map<String, String>>();
+		try {
+			TagNode node = cleaner.clean(inStream);
+			Object[] nsxxxxsum = null;
+			nsxxxxsum = node.evaluateXPath("//div[@class='swap']/div[@class='swap_wcity']/div/div[@class='list list-route']/a");
+			for(Object o :nsxxxxsum)
+			{ 
+				Map<String ,String> mp=new HashMap<String ,String>();
+				TagNode obj=(TagNode)o;
+				String nameStr=obj.getText().toString().trim();
+				String atr=obj.getAttributeByName("href");
+				if(atr.startsWith("/WebBus/Li")){
+					String lineId=atr.substring(atr.indexOf("lineId=")+7, atr.indexOf("&amp;direction"));
+					String lineAES=atr.substring(atr.indexOf("direction=")+10, atr.length());
+					String linename=nameStr.substring(0,nameStr.indexOf("("));
+					String linenameDes=nameStr.substring(nameStr.indexOf("(")+1,nameStr.indexOf(")"));
+					Log.d("UTIL", "message"+lineId+"aes"+lineAES);
+					mp.put("linename", linename);
+					mp.put("lineId", lineId);
+					mp.put("lineAES", lineAES);
+					mp.put("linenameDes", linenameDes);
+					data.add(mp);
+				}
+			}
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+		return data;
+		
+	}
+	
+
+	public static 	Map<String ,List<Map<String,String>>> getXpathStation(String inStream) {
+		HtmlCleaner cleaner = new HtmlCleaner();
+		Map<String ,List<Map<String,String>>> back=new HashMap<String ,List<Map<String,String>>>();
+		
+		List<Map<String,String>> up =new ArrayList<Map<String,String>>();
+		List<Map<String,String>> down =new ArrayList<Map<String,String>>();
+		
+		
+		String[] s=null;
+		try {
+			TagNode node = cleaner.clean(inStream);
+			System.out.print(node);
+			Object[] nsxxxxsum = null;
+			nsxxxxsum = node.evaluateXPath("//div[@class='swap_wcity']/div/div/div/div[@class='list-bus-station-content float-left']/a");
+			int index=1; 
+			for(Object o :nsxxxxsum)
+			{
+				Map<String,String>  mapda=new HashMap<String,String>();
+				TagNode sumNxxxode = (TagNode) o;
+				String stationName=sumNxxxode.getText().toString().trim();
+				mapda.put("station_id", String.valueOf(index));
+				mapda.put("stationName", stationName);
+				up.add(mapda);
+				index++;
+			}
+			back.put("up", up);
+		
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return back;
+		
+	}
+	public static List<Map<String, String>> getXpathBus(String inStream) {
+		HtmlCleaner cleaner = new HtmlCleaner();
+		List<Map<String, String>> data = new ArrayList<Map<String, String>>();
+		String[] s=null;
+		try {
+			TagNode node = cleaner.clean(inStream);
+			System.out.print(node);
+			Object[] nsxxxxsum = null;
+			Object[] nsxxxxsum1 = null;
+			nsxxxxsum = node.evaluateXPath("//div[@class='swap_wcity']/div/div/div/div[@class='list-bus-station-showBus float-left']");
+			nsxxxxsum1 = node.evaluateXPath("//div[@class='swap_wcity']/div/div/div[@class='model-content-a']");
+			
+			TagNode beginnode = (TagNode) nsxxxxsum1[1];
+			String tt=beginnode.getText().toString().trim().replaceAll("&nbsp;", "");
+			if(tt.contains("计划发车")){
+				String fche =tt.substring(tt.indexOf("计划发车"), tt.length());
+				
+			}
+			int index=1; 
+			for(Object o :nsxxxxsum)
+			{
+				Map<String,String>  mapda=new HashMap<String,String>();
+				TagNode sumNxxxode = (TagNode) o;
+				TagNode tags2=(TagNode) sumNxxxode.getChildTagList().get(0);
+				List<TagNode> tags=tags2.getChildTagList();
+				if(tags.size()>1)
+				{
+					String  srv =  tags.get(1).getText().toString().trim();
+					if(srv.contains("开往"))
+					{
+						mapda.put("inout", "0");	
+						
+					}else
+					{
+						mapda.put("inout", "1");
+					}
+					mapda.put("sno", String.valueOf(index));
+					data.add(mapda);
+					
+				}
+				index++;
+			
+			}
+		
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return data;
+		
+	}
+
+
+	public static String convertStreamToString(InputStream is) {
+
+		GZIPInputStream gzin = null;
+		try {
+			gzin = new GZIPInputStream(is);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}  
+		InputStreamReader isr = null; 
+         try {
+			 isr = new InputStreamReader(gzin, "utf-8");
+		} catch (UnsupportedEncodingException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}   
+		
+		
+		BufferedReader reader = null;
+				reader = new BufferedReader(isr);
+		StringBuilder sb = new StringBuilder();
+
+		String line = null;
+
+		try {
+			while ((line = reader.readLine()) != null) {
+				sb.append(line);
+			}
+
+		} catch (IOException e) {
+
+			e.printStackTrace();
+
+		} finally {
+
+			try {
+
+				is.close();
+
+			} catch (IOException e) {
+
+				e.printStackTrace();
+
+			}
+
+		}
+		return sb.toString();
+
+	}
+	
+	public static String convertStreamToStringNoz(InputStream is) {
+
+		BufferedReader reader = null;
+		try {
+			reader = new BufferedReader(new InputStreamReader(is, "utf-8"));
+		} catch (UnsupportedEncodingException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
+		StringBuilder sb = new StringBuilder();
+
+		String line = null;
+
+		try {
+
+			while ((line = reader.readLine()) != null) {
+
+				sb.append(line);
+
+			}
+
+		} catch (IOException e) {
+
+			e.printStackTrace();
+
+		} finally {
+
+			try {
+
+				is.close();
+
+			} catch (IOException e) {
+
+				e.printStackTrace();
+
+			}
+
+		}
+System.out.println( sb.toString());
+		return sb.toString();
+
+	}
+	
+	 public static String dateToString(Date date, String dateFormat)
+	    {
+	        SimpleDateFormat df = null;
+	        String returnValue = "";
+	        if (date != null)
+	        {
+	            df = new SimpleDateFormat(dateFormat);
+	            returnValue = df.format(date);
+	        }
+	        return returnValue;
+	    }
+
+}

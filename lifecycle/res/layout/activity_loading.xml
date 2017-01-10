@@ -1,0 +1,38 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="@drawable/bg1"
+    tools:context=".MainActivity"      android:id="@+id/adView111111">
+   
+   
+	
+     
+	   <TextView
+	        android:id="@+id/loadingtext"
+	        android:layout_width="fill_parent"
+	        android:layout_height="wrap_content"
+	        android:textColor="#ffffff"
+	        android:layout_marginLeft="25dp"
+	        android:layout_marginTop="120dp"
+	        android:text="@string/loadingtext"  />
+	   
+	    <TextView
+	        android:id="@+id/titleText"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:textColor="#ffffff"
+	     	android:layout_centerHorizontal="true"
+	     	android:textSize="18pt"
+	     	android:textStyle="bold"
+	        android:layout_marginTop="40dp"
+	        android:text="@string/titletext"  />
+	  	<!--<ImageButton
+	  	   android:id="@+id/main_login_regist"
+	       android:src="@drawable/filter_btn_film_nor"
+	       android:contentDescription="@string/login"
+	       android:layout_width="wrap_content" 
+	       android:layout_height="wrap_content"
+	   	 />
+    -->
+</RelativeLayout>

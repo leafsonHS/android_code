@@ -1,0 +1,12 @@
+INDEX VERSION 1.126+C:\DEV1\adspace\.metadata\.plugins\org.eclipse.jdt.core
+2401445061.index
+1147333621.index
+402190174.index
+1137388961.index
+277269163.index
+580728434.index
+3083158765.index
+4143803377.index
+2082277345.index
+3126858904.index
+4088006184.index

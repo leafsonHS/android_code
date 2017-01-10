@@ -1,0 +1,1491 @@
+package com.netposa.player;
+
+import java.io.File;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Stack;
+
+import netposa.pem.sdk.PEMSDK;
+import netposa.pem.sdk.PEMSDK.OnCompletionListener;
+import netposa.pem.sdk.PEMSDK.OnErrorListener;
+import netposa.pem.sdk.PEMSDK.OnFrameUpdateListener;
+import netposa.pem.sdk.PEMSDK.OnPreparedListener;
+import netposa.pem.sdk.PEMSDK.OnVideoSizeChangedListener;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.drawable.AnimationDrawable;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
+import android.os.SystemClock;
+import android.text.format.DateFormat;  
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.GestureDetector;
+import android.view.GestureDetector.OnDoubleTapListener;
+import android.view.GestureDetector.OnGestureListener;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+import android.view.OrientationEventListener;
+import android.view.SurfaceHolder;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.Window;
+import android.view.WindowManager;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.widget.Chronometer;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.ImageView.ScaleType;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.netposa.contentframe.PEMHelper;
+
+import com.netposa.entity.ChaInfo;
+import com.netposa.entity.DirInfo;
+import com.netposa.entity.UrlChaNameEntity;
+import com.netposa.network.APICaller;
+import com.netposa.network.BaseSDKCaller;
+import com.netposa.network.INetOperation;
+import com.netposa.network.NetSDKCaller;
+import com.netposa.network.SDKRuner;
+import com.netposa.network.StateCode;
+import com.netposa.pem.ChaModuleActivity;
+import com.netposa.pem.R;
+import com.netposa.pem.SplashActivity;
+import com.netposa.pem.UserBaseInfo;
+import com.netposa.player.PEMSurfaceLayout.CaptureCallback;
+import com.netposa.ui.Config;
+import com.netposa.ui.ToastMsg;
+
+
+public class PEMPlayActivity extends Activity implements SurfaceHolder.Callback,
+		OnVideoSizeChangedListener, OnFrameUpdateListener, OnGestureListener,
+		OnDoubleTapListener, OnErrorListener, 
+		OnCompletionListener, OnPreparedListener, CaptureCallback {
+	private ImageView back;
+	private RelativeLayout backlay;
+	private TextView netspeed;
+	private TextView shownetspeed;
+	 
+	private Chronometer chronometer = null;
+	private ImageButton fullscreen;
+	private TextView title;
+	private RelativeLayout playHeader;
+	private ImageButton cap; 
+	private ImageButton ptz;
+	private PEMSurfaceLayout pemSurface;
+	protected boolean isplayed = false;
+	private boolean isGetTitle = false;
+	private BaseSDKCaller caller;
+	private boolean Isfull = false; 
+	private RelativeLayout loadc;
+
+	private PTZLineLayout ptzlinelayout;
+	private LinearLayout recordlayout;
+	private LinearLayout controller;
+	// 解决云台控制，点击边框弹出底部操作栏，容易造成误操作
+    private RelativeLayout ptzControlLayout;
+
+	// private DecCore mDecCore; 
+	/**
+	 * 添加截图特定状态 否则录像是也会播发动画（原因是全都掉了一个方法
+	 */
+	private Boolean CaptureState = false;
+	private GestureDetector mGestureDetector;
+	private DirInfo playList;
+	private ImageButton ptzfav; 
+	private int index;
+	private int next;
+	private UserBaseInfo baseInfo;
+	private NetSpeedGeter nsg;
+	private ChaTitleGetter ctg;
+	DecimalFormat decimalFormat = new DecimalFormat("0.0"); 
+	private TextView loadtext;
+	private ImageView printscreen;
+	RelativeLayout.LayoutParams linearParams;
+	
+	private boolean isLink = false; // 从SMS中的链接启动到这里的intent
+//	private  ChaInfo chan;
+	private ChaInfo curPlayChaInfo = null;
+	private ToastMsg imgToast;
+	private ImageView record_trans;
+	private AnimationDrawable animationDrawable;
+	private  boolean  isRecord = false;
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		Window w = getWindow();
+		w.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+		w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+		w.requestFeature(Window.FEATURE_NO_TITLE);
+		setContentView(R.layout.chaplayview);
+		
+		initUI();
+		
+		baseInfo = (UserBaseInfo) getApplication();
+		
+		Uri url = getIntent().getData();
+		
+		// lwq 通过短信中url链接到播放界面，短信中提供通道id,name,该通道所在目录的id和name。
+		Bundle bundle = getIntent().getExtras();
+		if (bundle != null)
+		{    
+			
+			isLink = bundle.getBoolean("isLink");
+			isRecord = bundle.getBoolean("isRecord");
+			if (isLink) 
+			{
+			    startChaTitleGetter();
+				String chaId = bundle.getString("chaid");
+			//	String chaName = bundle.getString("chaName");
+				getUrlChaTitle(chaId); 
+				
+				ArrayList<ChaInfo> chaList = new ArrayList<ChaInfo>();
+				ChaInfo ci = new ChaInfo();
+				ci.id = chaId;
+			  //  ci.name = chaName;
+				
+				chaList.add(ci);
+						 
+				DirInfo di = new DirInfo();
+	
+				di.childCha = chaList;
+			
+				baseInfo.playList = di;
+				baseInfo.index = 0;
+				baseInfo.setPlayCaller(NetSDKCaller.class);
+			}
+		}
+		// end
+		
+		if (url != null) {
+			
+			
+		} else {
+			playList = baseInfo.playList;
+			next = index = baseInfo.index;
+			caller = BaseSDKCaller.getCallerInstance(baseInfo.getPlayCaller(),
+					baseInfo);
+	
+		}
+		
+		 
+		ptzlinelayout.setCaller(caller);
+		pemSurface.setCallback(this);
+		mGestureDetector = new GestureDetector(this, this);
+		mGestureDetector.setOnDoubleTapListener(this);		
+		
+		caller.setOnErrorListener(this);
+		caller.setOnFrameUpdateListener(this);
+		caller.setOnVideoSizeChangedListener(this);
+		caller.setOnCompletionListener(this);
+		caller.setOnPreparedListener(this);
+	}
+
+	private void initUI() {
+		backlay = (RelativeLayout) findViewById(R.id.playbacklay);
+		back = (ImageView) findViewById(R.id.playback);
+		netspeed = (TextView) findViewById(R.id.tv_netspeed);
+		shownetspeed = (TextView) findViewById(R.id.shownetspeed);
+		fullscreen = (ImageButton) findViewById(R.id.ib_fullscreen);
+		title = (TextView) findViewById(R.id.playtitle);
+		playHeader = (RelativeLayout) findViewById(R.id.playtoptitle);
+		cap = (ImageButton) findViewById(R.id.ib_cap);
+		ptz = (ImageButton) findViewById(R.id.ib_ptz);
+		loadc = (RelativeLayout) findViewById(R.id.lay_loading);
+		ptzlinelayout = (PTZLineLayout) findViewById(R.id.lay_pemptz);
+		ptzlinelayout.setVisibility(View.INVISIBLE);
+		
+		controller = (LinearLayout) findViewById(R.id.lay_combineCtrl);
+		
+		pemSurface = (PEMSurfaceLayout) findViewById(R.id.lay_pemsurface);
+		pemSurface.setCaptureCallback(this);
+	
+
+
+		ptzfav = (ImageButton) findViewById(R.id.ib_fav);
+		loadtext = (TextView) findViewById(R.id.upload_progress_dialog_text);
+
+		recordlayout = (LinearLayout) findViewById(R.id.recordtimelay);
+		chronometer = (Chronometer) findViewById(R.id.chronometer); 
+		chronometer.setFormat("%s");
+
+		record_trans = (ImageView) findViewById(R.id.recording_hint);
+		record_trans.setImageResource(R.drawable.recording_transition);
+		animationDrawable = (AnimationDrawable) record_trans.getDrawable();
+		
+		imgToast = new ToastMsg();
+		
+		printscreen = (ImageView) findViewById(R.id.iv_printscreen);
+	
+		ptzfav.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+		 
+		
+			}
+		});
+		fullscreen.setOnClickListener(new OnClickListener() {
+ 
+			@Override
+			public void onClick(View v) { 
+				switchActivityOrientation();
+				startListener();
+			}
+		});
+
+		cap.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				printscreen.setVisibility(View.VISIBLE);
+				printscreen.setImageBitmap(null);
+				capture();
+
+			}
+		});
+		
+		backlay.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				back();
+				
+				//finish();
+			}
+		});
+		ptz.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				if (ptzlinelayout.isShown()) {
+					ptz.setImageResource(R.drawable.ptz_close);				
+					ptzlinelayout.setVisibility(View.GONE);
+				} else {
+					ptz.setImageResource(R.drawable.ptz_open);
+					ptzlinelayout.setVisibility(View.VISIBLE);
+					if (recordlayout.isShown()) 
+					{
+						RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT,
+								RelativeLayout.LayoutParams.WRAP_CONTENT);
+						params.addRule(RelativeLayout.CENTER_HORIZONTAL);
+						params.addRule(RelativeLayout.ABOVE, ptzlinelayout.getId());
+						
+						recordlayout.setLayoutParams(params);
+						recordlayout.invalidate();
+					}
+					
+					
+				}
+			}
+		});
+		
+		ptzControlLayout = (RelativeLayout) findViewById(R.id.ptzcontrollay);
+		ptzControlLayout.setOnClickListener(new OnClickListener()
+		{
+			
+			@Override
+			public void onClick(View v)
+			{
+			}
+		});
+
+	}  // end initUI
+	private String name = null; //保存通过url中的通道id，获取的通道名
+	private ChaInfo chaInfo;
+	private Handler urlHandler = new Handler(){
+
+		@Override
+		public void handleMessage(Message msg)
+		{
+			switch (msg.what) {
+			case INetOperation.GETURLTITLE:
+			
+				UrlChaNameEntity entity = (UrlChaNameEntity) msg.obj;
+				if (entity.errno == 0 ) {
+					name= entity.name;
+					isGetTitle = true;
+					if (entity.chaInfo != null) {
+						chaInfo = entity.chaInfo;	
+					}
+					
+				} else {
+					//entity.printError(Login.this);
+				}
+				break;
+		    }
+		
+	    }
+	};
+
+	private Handler handler = new Handler() {
+		private Animation animation;
+
+		public void handleMessage(Message msg) {
+			switch (msg.what) {
+			case BaseSDKCaller.play:
+				if (msg.arg1 != 0) {
+					Log.d("shanezhai", "play ret=" + msg.arg1);
+					isplayed = false;
+					if(msg.arg1 != -601 && msg.arg1 != -202){   
+						Toast.makeText(PEMPlayActivity.this,
+								StateCode.translate(msg.arg1), 0).show();
+						//之所以加这个判断是因为，连接TCSP失败，这个错误在login的时候会通过onError回调上来
+						// 异步执行play的时候     由于getlastError的原因，又收到了这个错误，所以会弹出  两次“连接服务器失败”
+						// 暂时先这么猥琐的修改...
+						//  202  是打开通道失败     跟601一样     SDKStop就已经提示了
+					}
+					finish();
+				}
+				break;
+			case DisLoading:
+				loadc.setVisibility(View.INVISIBLE);
+				break;
+			case SetNetSpeed:
+				
+				netspeed.setText(decimalFormat.format(msg.arg1 / 1024f)
+						+ " KB/s");
+				shownetspeed.setText(decimalFormat.format(msg.arg1 / 1024f)
+						+ " KB/s");
+				break;
+			case ControlDismiss:
+				controller.setVisibility(View.GONE); 
+				if (ptzlinelayout.isShown()) {
+					rePosOfPtz(RelativeLayout.ALIGN_PARENT_BOTTOM,ptzlinelayout);
+				//	rePosOfPtz();
+					rePosofRecordTime(RelativeLayout.ALIGN_PARENT_BOTTOM, 0,recordlayout);
+					rePosofRecordTime(RelativeLayout.ABOVE, ptzlinelayout.getId(),recordlayout);
+				}else
+					rePosofRecordTime(RelativeLayout.ALIGN_PARENT_BOTTOM, recordlayout);
+				
+				//rePosOfPtz(RelativeLayout.ALIGN_PARENT_BOTTOM, ptzlinelayout);
+				shownetspeed.setVisibility(View.VISIBLE);
+				playHeader.setVisibility(View.GONE);
+				break;
+			case SDKStoped:
+				if ( true ) {
+					if ((msg.arg1) != 0) {
+						String err = StateCode.translate(msg.arg1);
+						if(msg.arg1 == 2 && isRecord){
+							err = getResources().getString(R.string.stream_end);
+						}
+						if (loadc.isShown()) {
+							Log.e("shanezhai", "SDKStoped"+err);
+							loadtext.setText(err);
+							
+						}else {
+							Toast.makeText(PEMPlayActivity.this, err, 0).show();
+						}
+						Log.e("shanezhai", "PEMPlayActivity SDKStoped 1"+err);
+						
+
+					} else {
+						// TCSP 断了  或者PVG 断了
+						Log.e("shanezhai", "PEMPlayActivity  TCSP is down");
+						if (loadc.isShown()) {
+							loadc.setVisibility(View.INVISIBLE);
+						}
+						Toast.makeText(PEMPlayActivity.this, getResources().getString(R.string.tcsp_down), 
+								                Toast.LENGTH_LONG).show();
+					}
+				} 
+				
+				ErrorPlayIcon();
+				// 网速提示为0.0
+				handler.obtainMessage(SetNetSpeed, 0, 0).sendToTarget(); 
+				break;
+			case CaptureBitmap:  
+				 
+				if (Isfull) { 
+					printscreen.setScaleType(ScaleType.FIT_CENTER);
+				} else { 
+					printscreen.setScaleType(ScaleType.CENTER);
+				}
+				printscreen.setImageBitmap((Bitmap) msg.obj);
+				if (animation == null) {
+					animation = AnimationUtils.loadAnimation(PEMPlayActivity.this,
+							R.anim.my_alpha_action);
+				} else { 
+					animation.reset();
+				}
+				printscreen.startAnimation(animation);
+
+				CaptureState = false;
+				// handler.sendEmptyMessageDelayed(CleanBitmap, 520);
+				// break;
+				// case CleanBitmap:
+				// printscreen.setImageBitmap(null);
+				printscreen.setVisibility(View.GONE);
+				break;
+			case PrePlay:
+				prePlayUI();
+				break;
+			case ChaTitle:
+				
+				/*ChaInfo ci = playList.childCha.get(index); 
+				ci.name = name;*/
+				
+				playList.childCha.get(index).name = chaInfo.name;
+				prePlayIcon(chaInfo);
+				//title.setText(ci.name);
+				//title.setVisibility(View.VISIBLE);
+				break;
+			default:
+				break;
+			}
+		};
+	};
+
+	
+	private void getUrlChaTitle(String id) {
+		
+		Message getname = Message.obtain(urlHandler, INetOperation.GETURLTITLE);
+	
+		APICaller caller = new APICaller(baseInfo.mNetOperationLoader);
+		UrlChaNameEntity entity = new UrlChaNameEntity();
+		entity.id = id;
+		getname.obj = entity;
+		caller.execute(getname); 
+
+	}
+	
+	
+	private void capture() {
+		String filepath = null;
+		CaptureState = true;
+		if (!pemSurface.isCaptruing()) {
+			Calendar calendar = Calendar.getInstance();
+			String format = "yyyyMMddhhmmss";
+			File root = Environment.getExternalStorageDirectory();
+			File dir = new File(root.getAbsolutePath() + "/PEM/");
+			if (!dir.exists()) {
+				dir.mkdirs();
+			}
+			if(isRecord){
+				filepath = dir.getAbsolutePath() + "/"
+			    		+ title.getText()+ "_" + DateFormat.format(format, calendar) + ".jpg";
+			}else{
+				filepath = dir.getAbsolutePath() + "/"
+						+ playList.childCha.get(index).name + "_"/*+Math.random()*/
+						+ DateFormat.format(format, calendar) + ".jpg";
+			}
+			pemSurface.capture(filepath);
+		
+			Toast.makeText(this, "截图保存在" + filepath, Toast.LENGTH_SHORT).show();
+
+		}
+
+	}
+
+	private int startByte = 0;
+	private String availaleString = "剩余{a}MB,已使用{u}KB";
+
+	private void recordStart() {
+		chronometer.setBase(SystemClock.elapsedRealtime());
+		
+		chronometer.start();
+		animationDrawable.start();
+		if (!ptzlinelayout.isShown())
+		{
+			if (controller.isShown()) {
+				rePosofRecordTime(RelativeLayout.ALIGN_PARENT_BOTTOM, 0,recordlayout);
+				rePosofRecordTime(RelativeLayout.ABOVE,controller.getId(), recordlayout);
+			}else {
+				rePosofRecordTime(RelativeLayout.ALIGN_PARENT_BOTTOM, recordlayout);
+			}
+		}
+		
+
+		long size = PEMHelper.getAvailaleSize();
+		if (size > 0) {
+			availaleString = availaleString.replace("{a}", size + "");
+			Calendar calendar = Calendar.getInstance();
+			String format = "yyyyMMddhhmmss";
+			File root = Environment.getExternalStorageDirectory();
+			File dir = new File(root.getAbsolutePath() + "/PEM/");
+			if (!dir.exists()) {
+				dir.mkdirs();
+			}
+			String basefilepath ;
+			if(isRecord){
+			      basefilepath = dir.getAbsolutePath() + "/"
+			    		+ title.getText()+ "_" + DateFormat.format(format, calendar);
+			}else{
+				  basefilepath = dir.getAbsolutePath() + "/"
+						+ playList.childCha.get(index).name + "_"
+						+ DateFormat.format(format, calendar);
+			}
+			String filepath = basefilepath + Config.PEMTYPE;
+			caller.filepath = filepath;
+			SDKRuner runer = new SDKRuner(handler, caller, 0);
+			runer.execute(BaseSDKCaller.recordStart);
+			pemSurface.capture(basefilepath);
+			
+			startByte = caller.getTotalBytes();
+		//	availaleSize.setVisibility(View.VISIBLE);
+			recordlayout.setVisibility(View.VISIBLE);
+		} else {
+			Toast.makeText(this, "手机上已没有空间", Toast.LENGTH_SHORT).show();
+			recordStop();
+		}
+ 
+	}
+
+	private void recordStop() {
+		SDKRuner runer = new SDKRuner(handler, caller, 0);
+		runer.execute(BaseSDKCaller.recordStop);
+		chronometer.stop();
+		animationDrawable.stop();
+		recordlayout.setVisibility(View.GONE);
+		Toast.makeText(this, "录像保存在" + caller.filepath, Toast.LENGTH_SHORT).show();
+	}
+
+	@Override
+	protected void onResume() {
+		start();
+		super.onResume();
+		
+	}
+
+	@Override
+	protected void onPause() {
+		if (switcher != null) {
+			switcher.stop();
+			switcher = null;
+		}
+		stop();
+		super.onPause();
+	
+	}
+
+	@Override
+	protected void onDestroy() {
+		if(mOrientationListener != null){
+			mOrientationListener.disable();
+		}
+		caller.quit();
+		super.onDestroy();
+	}
+
+	public void stop() {
+		Log.i("shanezhai", "stop");
+		caller.setOnVideoSizeChangedListener(null);
+		if (isplayed) {
+			isplayed = false;
+			// SDKRuner runer = new SDKRuner(handler, caller);
+			// runer.execute(BaseSDKCaller.stop);
+			caller.stop();
+		}
+
+	}
+
+	// private AlertDialog mErrorDialog;
+
+	private void showErrorDialog(int errorCode) {
+		
+		// if (mErrorDialog == null) {
+		AlertDialog.Builder builder = new Builder(this);
+		builder.setTitle(R.string.alert);
+		builder.setPositiveButton(R.string.retry,
+				new android.content.DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						switchChannel(index);
+						dialog.dismiss();
+					}
+				});
+		builder.setNegativeButton(R.string.cancel,
+				new android.content.DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						dialog.dismiss();
+						finish();
+					}
+				});
+		AlertDialog mErrorDialog = builder.create();
+		// }
+		mErrorDialog.setMessage(StateCode.translate(errorCode));
+		if (!mErrorDialog.isShowing()) {
+			mErrorDialog.show();
+		}
+	}
+	
+	
+    // 根据url中通道id获取通道name
+	private void startChaTitleGetter() {
+		if (ctg == null) {
+			ctg = new ChaTitleGetter();
+		}
+		if (!ctg.running) {
+			Thread t = new Thread(ctg);
+			t.start();
+		}
+
+	}
+
+	private class ChaTitleGetter implements Runnable {
+		public boolean running = false;
+		 
+ 
+		@Override
+		public void run() {
+			running = true;
+			
+				while (true) { 
+					
+					if (isGetTitle) {
+						handler.obtainMessage(ChaTitle).sendToTarget();
+						isGetTitle = false;
+						break;
+					}
+					
+				}
+			
+			running = false;
+		}
+
+	}
+	
+	
+	
+	private void startNetSpeedGeter() {
+		if (nsg == null) {
+			nsg = new NetSpeedGeter();
+		}
+		if (!nsg.running) {
+			Thread t = new Thread(nsg);
+			t.start();
+		}
+
+	}
+	
+	
+	
+	private class NetSpeedGeter implements Runnable {
+		public boolean running = false;
+		private int speed = 0;
+		private int size = 0;
+
+		@Override
+		public void run() {
+			running = true;
+			try {
+				while (isplayed) {
+					
+					speed = caller.getLastNetSpeed();
+					
+					handler.obtainMessage(SetNetSpeed, speed, size)
+								.sendToTarget();
+					
+					Thread.sleep(1000);
+				}
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			running = false;
+		}
+
+	}
+
+	private boolean isSurfceCreate = false;
+	
+
+	@Override
+	public void surfaceCreated(SurfaceHolder holder) {
+		isSurfceCreate = true;
+		start();
+	}
+
+	private void start() {
+		if (!isplayed && isSurfceCreate) {
+			isplayed = true;
+			if (prePlay()) {
+				SDKRuner runer = new SDKRuner(handler, caller, 0);
+				if(isRecord){
+					runer.execute(BaseSDKCaller.playRecordFile);
+				}else{
+					runer.execute(BaseSDKCaller.play);
+				}
+				handler.sendEmptyMessageDelayed(ControlDismiss, 2000);
+			} else {
+				isplayed = false;
+			}
+		}
+	}
+
+	private boolean prePlay() {
+		if(isRecord){
+			ptz.setVisibility(View.GONE);
+			ptzfav.setVisibility(View.GONE);
+			Config.configFuncView(true, cap); 
+		}else{
+			// 播放对象
+		    ChaInfo ci = playList.childCha.get(index); 		
+			//EmergDialog.initEmergStatus(ci.isAdd);
+			prePlayIcon(ci);		
+		}
+		return true;
+	}
+	
+	private boolean prePlayIcon(ChaInfo ci)
+	{
+		curPlayChaInfo = ci;
+		Config.configFuncView(true, ptzfav);
+		
+		
+		if (!ci.isEnable()) {
+			title.setText(/*playList.name + "/" +*/ ci.name);
+			ptz.setVisibility(View.GONE);
+			cap.setVisibility(View.GONE);
+			fullscreen.setVisibility(View.GONE);
+			Log.e("shanezhai", "prePlay 不可用 ");
+			loadtext.setText(getResources().getString(R.string.offline));
+			return false;
+		}
+		loadtext.setText(R.string.loading);
+		Config.configFuncView(true, cap); 
+		fullscreen.setVisibility(View.VISIBLE);
+		// 设置标题
+		if (playList.name == null) {
+			
+			if (ci.name == null) {
+				title.setVisibility(View.GONE);
+
+			} else {
+				title.setText(ci.name);
+				title.setVisibility(View.VISIBLE);
+			}
+		} else {
+			if (ci.name == null) {
+				title.setText(playList.name);
+			} else {
+				title.setText(/*playList.name + "/" + */ci.name);
+			}
+		}
+
+		// 设置设备名
+		caller.devname = playList.phy;
+		
+		// 所在目录为我的收藏 或者是搜索
+		if (playList.id != null
+				&& (playList.id.equals(DirInfo.TYPE_FAVOURITE) || playList.id
+						.equals(DirInfo.TYPE_SEARCH))) {
+			String[] s = ci.id.split("::");
+			caller.devname = s[0];
+		}
+		// 设置通道名
+		caller.id = ci.id;
+		caller.chaname = ci.phy;
+
+		// 设置声音
+		caller.isAudio = ci.audio;
+		// 处理云台图标
+		if (baseInfo.isTest) {
+			ptz.setVisibility(View.GONE);
+		} else {
+			if (ci.ptz) {
+				ptz.setVisibility(View.VISIBLE);
+			} else {
+				ptz.setVisibility(View.GONE); 
+			} 
+		}
+		return true;
+	}
+	
+	// 播放错误时，工具栏图标置灰不可点击
+	private void ErrorPlayIcon(){
+	
+		ptz.setClickable(false);
+		ptz.setImageResource(R.drawable.ptz_close_unable);
+		cap.setClickable(false);
+		cap.setImageResource(R.drawable.cap_img_unable);
+		fullscreen.setClickable(false);
+		
+		if (Isfull) {
+			fullscreen.setImageResource(R.drawable.torealshow_unable);
+		}else {
+			fullscreen.setImageResource(R.drawable.tofullshow_unable);
+		}
+		
+		
+		// 不在线通道按钮置灰，不可点击
+		ptzfav.setClickable(false);
+		ptzfav.setImageResource(R.drawable.fav_unable);
+		
+	}
+	
+	
+	
+	
+
+	private boolean prePlayUI() {
+		// 播放对象
+		ChaInfo ci = playList.childCha.get(next);
+		curPlayChaInfo = ci;
+		
+		if (!ci.isEnable()) {
+			title.setText(ci.name);
+		/*	ptz.setVisibility(View.GONE);
+			cap.setVisibility(View.GONE);
+			recorde.setVisibility(View.GONE);
+			fullscreen.setVisibility(View.GONE);*/
+			
+			
+			ptz.setClickable(false);
+			ptz.setImageResource(R.drawable.ptz_close_unable);
+			cap.setClickable(false);
+			cap.setImageResource(R.drawable.cap_img_unable);
+			fullscreen.setClickable(false);
+			
+			if (Isfull) {
+				fullscreen.setImageResource(R.drawable.torealshow_unable);
+			}else {
+				fullscreen.setImageResource(R.drawable.tofullshow_unable);
+			}
+			
+			
+			// 不在线通道按钮置灰，不可点击
+			ptzfav.setClickable(false);
+			ptzfav.setImageResource(R.drawable.fav_unable);
+			// 修改该通道状态提示
+			loadtext.setText(getResources().getString(R.string.offline));
+			handler.obtainMessage(SetNetSpeed, 0, 0).sendToTarget();
+			return false;
+		}
+		
+		ptz.setClickable(true);
+		ptz.setImageResource(R.drawable.ptz_close);
+		cap.setClickable(true);
+		cap.setImageResource(R.drawable.cap_img);
+		
+		fullscreen.setClickable(true);
+		
+		if (Isfull) {
+			fullscreen.setImageResource(R.drawable.torealshow);
+		}else {
+			fullscreen.setImageResource(R.drawable.tofullshow);
+		}
+		
+		
+		ptzfav.setClickable(true);
+		loadtext.setText(R.string.loading);
+		cap.setVisibility(View.VISIBLE);
+		fullscreen.setVisibility(View.VISIBLE);
+		// 设置标题
+		if (playList.name == null) {
+			if (ci.name == null) {
+				title.setVisibility(View.GONE);
+			} else {
+				title.setText(ci.name);
+			}
+		} else {
+			if (ci.name == null) {
+				title.setText(playList.name);
+			} else {
+				
+				title.setText(/*playList.name + "/" +*/ ci.name);
+			}
+		}
+
+		Config.configFuncView(true, ptzfav);
+		Config.configFuncView(true, cap); 
+		// 处理云台图标
+		if (baseInfo.isTest) {
+			ptz.setVisibility(View.GONE);
+		} else {
+			if (ci.ptz) {
+				ptz.setVisibility(View.VISIBLE);
+			} else {
+				ptz.setVisibility(View.GONE);
+			}
+		}
+
+		return true;
+	}
+ 
+	private boolean prePlayBackground() { 
+		Log.e("shanezhai", "prePlayBackground");
+		// 播放对象
+		ChaInfo ci = playList.childCha.get(index);
+		if (!ci.isEnable()) {
+			Log.e("shanezhai", "false");
+			return false;
+		}
+		caller.devname = playList.phy;
+		if (playList.id != null
+				&& (playList.id.equals(DirInfo.TYPE_FAVOURITE) || playList.id
+						.equals(DirInfo.TYPE_SEARCH))) {
+			String[] s = ci.id.split("::");
+			caller.devname = s[0];
+		}
+		// 设置通道名
+		caller.id = ci.id;
+		caller.chaname = ci.phy;
+
+		// 设置声音
+		caller.isAudio = ci.audio;
+		
+		return true;
+	}
+
+	@Override
+	public void surfaceChanged(SurfaceHolder holder, int format, int width,
+			int height) {	
+		Configuration config = getResources().getConfiguration();
+		if (config.orientation == Configuration.ORIENTATION_LANDSCAPE)
+		{
+             if (!controller.isShown()) {
+				
+				rePosOfPtz(RelativeLayout.ALIGN_PARENT_BOTTOM,ptzlinelayout);
+			} else {
+			
+				rePosOfPtz(RelativeLayout.ALIGN_PARENT_BOTTOM, 0,ptzlinelayout);
+				rePosOfPtz(RelativeLayout.ABOVE, controller.getId(), ptzlinelayout);
+				
+			}
+			
+		}else if (config.orientation == Configuration.ORIENTATION_PORTRAIT)
+		{
+            if (!controller.isShown()) {
+				
+				rePosOfPtz(RelativeLayout.ALIGN_PARENT_BOTTOM, ptzlinelayout);
+			} else {
+				
+				rePosOfPtz(RelativeLayout.ALIGN_PARENT_BOTTOM, 0,ptzlinelayout);
+				rePosOfPtz(RelativeLayout.ABOVE, controller.getId(),ptzlinelayout);
+				
+			}
+		}	
+		
+	}
+
+	@Override
+	public void surfaceDestroyed(SurfaceHolder holder) {
+		isSurfceCreate = false;
+	}
+
+	public static final int DisLoading = -1001;
+	public static final int SetNetSpeed = -1002;
+	public static final int SDKStoped = -1003;
+	public static final int SDKLineBreak = -1004;
+	public static final int ControlDismiss = -1005;
+	public static final int CaptureBitmap = -1006;
+	
+	public static final int ChaTitle = -1007;
+
+	public static final int PrePlay = -1010;
+
+	// public static final int CleanBitmap = -1007;
+
+	@Override
+	public void onConfigurationChanged(Configuration newConfig) {
+		
+		super.onConfigurationChanged(newConfig);
+	
+	}
+
+	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+		boolean retValue = mGestureDetector.onTouchEvent(event);
+		return retValue;
+	}
+	// 单击响应
+	@Override
+	public boolean onSingleTapConfirmed(MotionEvent e) {
+		
+		if (controller.isShown()) {
+			controller.setVisibility(View.GONE);
+			playHeader.setVisibility(View.GONE);
+			shownetspeed.setVisibility(View.VISIBLE);
+
+			rePosOfPtz(RelativeLayout.ALIGN_PARENT_BOTTOM, ptzlinelayout);
+		} else {
+			
+		//	controller.requestLayout();
+			controller.setVisibility(View.VISIBLE);
+			playHeader.setVisibility(View.VISIBLE);
+			shownetspeed.setVisibility(View.GONE);
+	
+			rePosOfPtz(RelativeLayout.ALIGN_PARENT_BOTTOM, 0,ptzlinelayout);
+			rePosOfPtz(RelativeLayout.ABOVE, controller.getId(),ptzlinelayout);
+
+		}
+		
+		if (ptzlinelayout.isShown()) {
+			rePosofRecordTime(RelativeLayout.ALIGN_PARENT_BOTTOM, 0,recordlayout);
+			rePosofRecordTime(RelativeLayout.ABOVE,ptzlinelayout.getId(), recordlayout);
+		}else {
+			if (controller.isShown()) {
+				rePosofRecordTime(RelativeLayout.ALIGN_PARENT_BOTTOM, 0,recordlayout);
+				rePosofRecordTime(RelativeLayout.ABOVE,controller.getId(), recordlayout);
+			}else {
+				rePosofRecordTime(RelativeLayout.ALIGN_PARENT_BOTTOM, recordlayout);
+			}	
+		}
+		
+		return false;
+	}
+
+	@Override
+	public boolean onDoubleTap(MotionEvent e) {
+/*		if (controller.isShown()) {
+			controller.setVisibility(View.INVISIBLE);
+		} else {
+			controller.setVisibility(View.VISIBLE);
+		}*/
+		return true;
+	}
+
+	@Override
+	public boolean onDoubleTapEvent(MotionEvent e) {
+
+		return false;
+	}
+
+	@Override
+	public boolean onDown(MotionEvent e) {
+
+		return false;
+	}
+
+	@Override
+	public void onShowPress(MotionEvent e) {
+
+	}
+
+	@Override
+	public boolean onSingleTapUp(MotionEvent e) {
+
+		return false;
+	}
+
+	@Override
+	public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
+			float distanceY) {
+
+		return false;
+	}
+
+	@Override
+	public void onLongPress(MotionEvent e) {
+
+	}
+
+	@Override
+	public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
+			float velocityY) {
+		if(isRecord){
+			return true;
+		}
+		if (PEMHelper.getLength(e1.getX(), e1.getY(), e2.getX(), e2.getY()) < 100) {
+			return false;
+		}
+		
+		if (ptzlinelayout.isShown()) {
+			ptzlinelayout.onFling(e1, e2, velocityX, velocityY);
+			return true;
+		} else if (playList.childCha.size() > 1) {
+			if (velocityX < -100) {// left
+				int p = (next + 1) % playList.childCha.size();
+				switchChannel(p);
+			} else if (velocityX > 100) {// right
+				int p = (next - 1 + playList.childCha.size())
+						% playList.childCha.size();
+				switchChannel(p);
+			}
+			return true;
+		}
+		return false;
+	}
+
+	private void switchChannel(int p) {
+		next = p;
+		Log.d("", "switchChannel=" + p);
+		if (switcher == null) {
+			switcher = new ChannelSwitcher();
+			// handler.post(switcher);
+			switcher.switchchannel(p);
+			switcher.start(p);
+		}else {
+			switcher.switchchannel(p);
+		}
+		
+		handler.sendEmptyMessage(PrePlay);
+		
+		controller.setVisibility(View.VISIBLE);
+		shownetspeed.setVisibility(View.GONE);
+		playHeader.setVisibility(View.VISIBLE);
+		handler.removeMessages(ControlDismiss);
+		handler.sendEmptyMessageDelayed(ControlDismiss, 2000);
+		loadc.setVisibility(View.VISIBLE);
+	}
+
+	private void switchChannelImpl(int p) {
+		Log.d("", "switchChannelImpl=" + p);
+		Log.e("shanezhai", "switchChannelImpl call stop");
+		
+		caller.stop();
+		index = p;
+		isplayed = false;
+		if (prePlayBackground()) {
+			
+			caller.play();
+		}
+	}
+
+	private ChannelSwitcher switcher;
+
+	@Override
+	public void onFrameUpdate(PEMSDK arg0, byte[] arg1) {
+		if (isplayed)
+			pemSurface.updateImage(arg1);
+	}
+
+	@Override
+	public void onRectUpdate(PEMSDK arg0, int arg1, int arg2) {
+		
+		if (loadc.isShown()) {
+			handler.obtainMessage(DisLoading).sendToTarget();
+		}
+		
+		pemSurface.setRect(arg1, arg2);
+		isplayed = true;
+		startNetSpeedGeter();
+	}
+
+	@Override
+	public void onPrepared(PEMSDK arg0) {
+		Log.d("df", "Prepared");
+	}
+
+	@Override
+	public void onCompletion(PEMSDK arg0) {
+		// isplayed = false;
+	}
+
+	@Override
+	public void onError(PEMSDK arg0, int arg1, Exception arg2) {
+		Log.v("shanezhai","onError arg1:"+arg1);
+		switch (arg1) {
+		case PEMSDK.ERROR_WRONG_PARAMETER: // -2
+		case PEMSDK.ERROR_WRONG_STATE:     // -3
+			break;
+		default:
+			handler.obtainMessage(SDKStoped, arg1, 0).sendToTarget();
+			break;
+		}
+	} 
+
+	class ChannelSwitcher implements Runnable {
+		private Object mLock;
+		private boolean mIsRun = false;
+		private Thread mThread;
+		private Stack<Integer> mIndexStack;
+		private boolean needSw = false;
+
+		public ChannelSwitcher() {
+			mIndexStack = new Stack<Integer>();
+			this.mLock = new Object();
+		}
+
+		// private BaseSDKCaller baseSDKCaller;
+		@Override
+		public void run() {
+			Log.d("", "start run sw=");
+			int swindex;
+			while (mIsRun) {
+				Log.d("", "mIsRun =true");
+
+				if (!mIndexStack.isEmpty()) {
+					Log.d("", "in loop=");
+					synchronized (mLock) {
+
+						swindex = mIndexStack.pop();
+						Log.d("", "get p=" + swindex);
+						mIndexStack.clear();
+					}
+					switchChannelImpl(swindex);
+				}
+				
+				synchronized (mLock) {
+					if (!mIsRun) {
+						break;
+					}
+
+					try {
+						mLock.wait();	
+					} catch (InterruptedException e) {
+						return;
+					}
+				}
+
+			}
+		
+			Log.d("shanezhai", "thread finish call stop");
+			stop();
+		} 
+
+	
+		public void switchchannel(int p) {
+			if (mIsRun) {
+				synchronized (mLock) {
+					Log.d("", "add=" + p);
+					mIndexStack.add(p);
+					mLock.notify();
+				}
+			}
+		}
+
+		public void start(int p) {
+			mThread = new Thread(this);
+			
+			mIsRun = true;
+			switcher.switchchannel(p);
+			mThread.start();
+
+		}
+
+		public void stop() {
+			
+			mIsRun = false;
+
+			synchronized (mLock) {
+				mLock.notify();
+			}
+			// mThread.interrupt();
+		}
+	}
+
+	@Override
+	public void onCapture(Bitmap bitmap) {
+		if (CaptureState) {
+			handler.obtainMessage(CaptureBitmap, bitmap).sendToTarget();
+		}
+	}
+	// 重新改变云台控制行的位置
+	public void rePosOfPtz(int rules,View view)
+	{
+		
+		RelativeLayout.LayoutParams linearParams = setLinearParams();
+
+	    linearParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
+	    linearParams.addRule(rules);
+	    view.setLayoutParams(linearParams);
+	    view.invalidate();
+	   
+	}
+
+	public void rePosofRecordTime(int rules, int id,View view)
+	{
+		RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT,
+				RelativeLayout.LayoutParams.WRAP_CONTENT);
+		params.addRule(RelativeLayout.CENTER_HORIZONTAL);
+		params.addRule(rules, id);
+		
+		view.setLayoutParams(params);
+		view.invalidate();
+	}
+	
+	public void rePosofRecordTime(int rules, View view)
+	{
+		RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT,
+				RelativeLayout.LayoutParams.WRAP_CONTENT);
+		params.addRule(RelativeLayout.CENTER_HORIZONTAL);
+		params.addRule(rules);
+		
+		view.setLayoutParams(params);
+		view.invalidate();
+	}
+	
+
+	public void rePosOfPtz(int rules, int id,View view)
+	{	
+
+		RelativeLayout.LayoutParams linearParams = setLinearParams();
+	 //   linearParams.width = RelativeLayout.LayoutParams.MATCH_PARENT;
+	    linearParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
+	    linearParams.addRule(rules, id);
+	    view.setLayoutParams(linearParams);
+	    view.invalidate();
+	
+	}
+	
+	
+	private RelativeLayout.LayoutParams setLinearParams()
+	{
+		if(getRequestedOrientation()== ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+		{
+			linearParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT,RelativeLayout.LayoutParams.WRAP_CONTENT);
+			linearParams.bottomMargin = 0;
+			playHeader.setBackgroundResource(0);
+			playHeader.setBackgroundResource(R.drawable.playtop);
+			controller.setBackgroundResource(0);
+			controller.setBackgroundResource(R.drawable.playbottom);
+			ptzlinelayout.setBackgroundResource(0);
+			ptzlinelayout.setBackgroundResource(R.drawable.ptz_background);
+				
+		}else if (getRequestedOrientation() == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE )
+		{
+
+			linearParams = new RelativeLayout.LayoutParams(getScreenWidth()/2,RelativeLayout.LayoutParams.WRAP_CONTENT);
+			linearParams.bottomMargin = 50;
+			playHeader.setBackgroundResource(R.drawable.play_full_title_bottom);
+			controller.setBackgroundResource(R.drawable.play_full_title_bottom);
+			ptzlinelayout.setBackgroundResource(R.drawable.ptz_background_full);
+		
+			
+		}else 
+		{
+			
+			Configuration config = getResources().getConfiguration();
+
+			if (config.orientation == Configuration.ORIENTATION_LANDSCAPE)
+			{
+				linearParams = new RelativeLayout.LayoutParams(getScreenWidth()/2,RelativeLayout.LayoutParams.WRAP_CONTENT);
+				linearParams.bottomMargin = 50;
+				
+				playHeader.setBackgroundResource(R.drawable.play_full_title_bottom);
+				controller.setBackgroundResource(R.drawable.play_full_title_bottom);
+				ptzlinelayout.setBackgroundResource(R.drawable.ptz_background_full);
+				
+			}else if (config.orientation == Configuration.ORIENTATION_PORTRAIT)
+			{
+				linearParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT,RelativeLayout.LayoutParams.WRAP_CONTENT);
+				linearParams.bottomMargin = 0;
+				
+				playHeader.setBackgroundResource(0);
+				playHeader.setBackgroundResource(R.drawable.playtop);
+				
+				controller.setBackgroundResource(0);
+				controller.setBackgroundResource(R.drawable.playbottom);
+				
+				ptzlinelayout.setBackgroundResource(0);
+				ptzlinelayout.setBackgroundResource(R.drawable.ptz_background);
+				
+			}	
+		
+		}
+	
+		return linearParams;
+	}
+	
+	// 获取屏幕宽度
+	private int getScreenWidth()
+	{
+		 DisplayMetrics metric = new DisplayMetrics();
+		 getWindowManager().getDefaultDisplay().getMetrics(metric);
+	     int width = metric.widthPixels;     // 屏幕宽度（像素）
+		 return width;
+		 
+	}
+	
+	public void back()
+	{
+		stop();
+		if (isLink)
+		{			 
+			Intent intent = new Intent();
+			
+			intent.putExtra("linkFromPlay", true);
+			intent.setClass(PEMPlayActivity.this, SplashActivity.class);
+			startActivity(intent);
+		}
+		setResult(1);
+		isLink = false;
+		finish();
+	}
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event)
+	{
+		// TODO Auto-generated method stub
+		if (keyCode == KeyEvent.KEYCODE_BACK)
+		{
+			back();
+		}
+		return super.onKeyDown(keyCode, event);
+	}
+
+
+	
+	OrientationEventListener  mOrientationListener = null;
+	boolean  mIsClickLand = false;
+	boolean  mIsClickPtrait = false;
+	private void startListener() {
+		if(mOrientationListener == null){
+			 mOrientationListener = new OrientationEventListener(this) {
+		            @Override
+		            public void onOrientationChanged(int rotation) {
+		                // 设置竖屏
+		                if (((rotation >= 0) && (rotation <= 30)) || (rotation >= 330)) {
+		                	 if(mIsClickPtrait){
+		                		 mIsClickPtrait = false;
+	                		 }
+		                	if(getRequestedOrientation()==ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE){
+		                		  //Log.v("shanezhai","current  is  LANDSCAPE 1111");
+		                		  if(!mIsClickLand){
+		                			  //Log.v("shanezhai","current  is  LANDSCAPE 22222");
+		                			  switchActivityOrientation();
+		                		  }
+		                	}		
+		                }
+		                // 设置横屏
+		                else if (((rotation >= 230) && (rotation <= 310))) {
+		                	if(mIsClickLand){
+		                		mIsClickLand = false;
+		                	}
+		                	if(getRequestedOrientation()==ActivityInfo.SCREEN_ORIENTATION_PORTRAIT){
+		                		  //Log.v("shanezhai","current  is  PORTRAIT 1111");
+		                		  if(!mIsClickPtrait){
+		                			  //Log.v("shanezhai","current  is  PORTRAIT 22222");
+		                			  switchActivityOrientation();
+		                		  }
+		                	}
+		                }
+		            }
+		        };
+		      mOrientationListener.enable();
+		}
+    }
+
+    private  void  switchActivityOrientation(){
+    	Isfull = pemSurface.switchFullScreen();			
+		if (Isfull) {
+			mIsClickPtrait = true;
+			fullscreen.setImageResource(R.drawable.tofullshow);
+						
+			if(getRequestedOrientation()!=ActivityInfo.SCREEN_ORIENTATION_PORTRAIT){					
+				 // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+			 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);	
+			 pemSurface.setFullScreen(false);
+			 Isfull = false;
+			 ptzlinelayout.requestLayout(); 
+			}
+		} else {mn
+			mIsClickLand = true;
+			fullscreen.setImageResource(R.drawable.torealshow);
+			if(getRequestedOrientation()!=ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE){
+				  setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+				  pemSurface.setFullScreen(true);	
+				  Isfull = true;
+				  ptzlinelayout.requestLayout();
+			}
+		}
+    }
+}

@@ -1,0 +1,232 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	  xmlns:ns="http://mobwin.android.com/apk/res/com.zhuamob.sample"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="@drawable/whole_bg"
+    tools:context=".HomeActivity" >
+
+    <!-- title bar -->
+  <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/title_bar_height"
+        android:background="@color/jpush_blue">
+
+        <ImageButton
+             android:id="@+id/titlebar_back_id"
+            android:layout_width="@dimen/title_bar_height"
+            android:layout_height="match_parent"
+            android:layout_alignParentLeft="true"
+            android:src="@drawable/back_btn"
+            android:background="@drawable/back_btn_bg"
+            />
+
+        <TextView
+                  android:id="@+id/textviewx"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_centerVertical="true"
+            android:text="@string/allDerection"
+            android:textColor="#ffffff"
+            android:textSize="@dimen/text_large_size"/>
+   <ImageView
+            android:id="@+id/icon_refreash"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+     		android:layout_width="@dimen/title_bar_height"
+            android:contentDescription="@string/empty"
+            android:gravity="center"
+            android:src="@drawable/title_home_normal" />
+    </RelativeLayout>
+    
+  
+    <LinearLayout
+        android:id="@+id/titlebar_id"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/title_background"
+        android:orientation="horizontal" >
+        <ImageView
+        android:id="@+id/titlebar_back_id"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_weight="0.15"
+            android:contentDescription="@string/empty"
+            android:gravity="center"
+            android:src="@drawable/detail_back_normal" >
+        </ImageView>
+
+        <TextView
+            android:id="@+id/textviewx"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_weight="0.6"
+            android:gravity="center"
+            android:text="@string/allDerection"
+            android:textColor="#3F454E"
+            android:textSize="12pt" >
+        </TextView>
+        <ImageView
+            android:id="@+id/icon_refreash"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_weight="0.15"
+            android:contentDescription="@string/empty"
+            android:gravity="center"
+            android:src="@drawable/title_home_normal" />
+    </LinearLayout>
+	
+	
+	   <LinearLayout
+        android:id="@+id/lineSelector"
+        android:layout_width="fill_parent"
+        android:layout_height="40dp"
+        android:layout_below="@id/titlebar_id"
+        android:orientation="horizontal" 
+        android:background="@drawable/itemborder"
+        android:clickable="true"
+        >
+
+        <TextView
+            android:gravity="center"
+            android:id="@+id/lineSelectorTitle"
+            android:layout_width="0dp"
+            android:layout_height="fill_parent"
+            android:layout_weight="0.3"
+            android:paddingLeft="5dp"
+            android:text="@string/curLine"
+            android:textColor="#000000" />
+        <TextView
+              android:gravity="center"
+            android:id="@+id/lineSelectorText"
+            android:layout_width="0dp"
+            android:layout_height="fill_parent"
+            android:layout_weight="0.5"
+            android:paddingLeft="5dp"
+            android:textColor="#000000" />
+       <ImageView
+	            android:layout_width="0dp"
+    	        android:layout_height="wrap_content"
+        	    android:layout_weight="0.2"
+				android:layout_gravity="center"
+                android:contentDescription="@string/empty"
+                android:src="@drawable/arrow" />
+    </LinearLayout>
+	 
+    <LinearLayout
+        android:clickable="true"
+        android:id="@+id/derectionChange"
+        android:layout_width="fill_parent"
+        android:layout_height="40dp"
+        android:layout_below="@id/lineSelector"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:background="@drawable/itemborder"
+        android:orientation="horizontal"
+        
+         >
+        <TextView
+            android:gravity="center"
+            android:id="@+id/derectionTitle"
+            android:layout_width="0dp"
+            android:layout_height="fill_parent"
+            android:layout_weight="0.3"
+            android:paddingLeft="5dp"
+            android:text="@string/derectionTitle"
+            android:textColor="#000000" />
+        <TextView
+              android:gravity="center"
+            android:id="@+id/derectionText"
+            android:layout_width="0dp"
+            android:layout_height="fill_parent"
+            android:layout_weight="0.5"
+            android:paddingLeft="5dp"
+            android:textColor="#000000" />
+            <ImageView
+	            android:layout_width="0dp"
+    	        android:layout_height="wrap_content"
+        	    android:layout_weight="0.2"
+        	    android:layout_gravity="center"
+                android:contentDescription="@string/empty"
+                android:src="@drawable/icon_6" />
+        
+    </LinearLayout>
+    
+    <LinearLayout
+        android:id="@+id/waitingStation"
+        android:layout_width="fill_parent"
+        android:layout_height="40dp"
+        android:layout_below="@id/derectionChange"
+        android:orientation="horizontal" 
+        android:background="@drawable/itemborder"
+        android:clickable="true"
+        >
+
+        <TextView
+            android:gravity="center"
+            android:id="@+id/waitingStationTitle"
+            android:layout_width="0dp"
+            android:layout_height="fill_parent"
+            android:layout_weight="0.3"
+            android:paddingLeft="5dp"
+            android:text="@string/waitingStation"
+            android:textColor="#000000" />
+
+        <TextView
+              android:gravity="center"
+            android:id="@+id/waitingStationText"
+            android:layout_width="0dp"
+            android:layout_height="fill_parent"
+            android:layout_weight="0.5"
+            android:paddingLeft="5dp"
+            android:textColor="#000000" />
+       <ImageView
+	            android:layout_width="0dp"
+    	        android:layout_height="wrap_content"
+        	    android:layout_weight="0.2"
+				android:layout_gravity="center"
+                android:contentDescription="@string/empty"
+                android:src="@drawable/arrow" />
+    </LinearLayout>
+       <LinearLayout
+        android:id="@+id/nodata"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/waitingStation"
+        android:orientation="horizontal" 
+        android:background="@drawable/itemborder"
+        android:clickable="true"
+        >
+        <TextView
+            android:id="@+id/noDataText"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:gravity="center"
+          	android:layout_gravity="center_horizontal"
+            android:textColor="#ff6600" />
+    </LinearLayout>
+    <LinearLayout
+           android:id="@+id/listViewLayOut"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_below="@id/nodata"
+        android:orientation="horizontal" >
+        <ListView
+            android:cacheColorHint="#00000000"
+            android:id="@+id/ListView01"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+     <com.baidu.mobads.AdView
+        android:id="@+id/adView111"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        baiduadsdk:adSize="0" />
+</RelativeLayout>

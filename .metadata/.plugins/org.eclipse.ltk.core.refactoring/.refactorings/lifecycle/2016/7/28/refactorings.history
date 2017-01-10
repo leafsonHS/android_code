@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;lifecycle/res/raw/ibus_20160528.db&apos; to &apos;ibus_20160704.db&apos;" description="Rename resource &apos;ibus_20160528.db&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="res/raw/ibus_20160528.db" name="ibus_20160704.db" stamp="1467643465724" updateReferences="true"/>
+</session>
